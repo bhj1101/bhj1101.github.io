@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>눈으로 읽기</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400&family=Space+Mono:wght@400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0e0e0e; --surface:#161616; --border:#252525;
+  --text:#c9bba8; --dim:#4a4a4a; --accent:#c9bba8;
+  --green:#6dbf8a; --red:#bf6d6d;
+}
+body{background:var(--bg);color:var(--text);font-family:'Noto Serif KR',serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* SETUP */
+#setup{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 24px;max-width:440px;width:100%;}
+h1{font-size:18px;font-weight:400;letter-spacing:1.5px;margin-bottom:3px;}
+.sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:22px;}
+
+#rbanner{display:none;align-items:center;justify-content:space-between;gap:8px;background:rgba(109,191,138,.07);border:1px solid rgba(109,191,138,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--green);}
+#rbtn{background:rgba(109,191,138,.15);border:1px solid rgba(109,191,138,.3);border-radius:4px;padding:4px 10px;color:var(--green);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+
+#dz{border:1.5px dashed var(--border);border-radius:10px;padding:26px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:12px;position:relative;}
+#dz.over,#dz:hover{border-color:var(--dim);background:rgba(255,255,255,.02);}
+#dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.di{font-size:22px;margin-bottom:8px;opacity:.5;}
+.dl{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);line-height:1.7;}
+#fn{font-family:'Space Mono',monospace;font-size:10px;color:var(--green);margin-top:6px;min-height:14px;}
+
+.or-row{display:flex;align-items:center;gap:10px;margin:12px 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);}
+.or-row::before,.or-row::after{content:'';flex:1;height:1px;background:var(--border);}
+textarea{width:100%;height:88px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Noto Serif KR',serif;font-size:13px;line-height:1.8;color:var(--text);resize:none;outline:none;}
+textarea:focus{border-color:var(--dim);}
+
+.opts{display:flex;gap:16px;margin:14px 0;align-items:flex-end;flex-wrap:wrap;}
+.og{display:flex;flex-direction:column;gap:5px;}
+.ol{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px;}
+.srow{display:flex;align-items:center;gap:8px;}
+input[type=range]{width:90px;accent-color:var(--accent);}
+.rv{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);min-width:22px;}
+select{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;outline:none;}
+
+.go{width:100%;padding:13px;background:var(--accent);color:#0e0e0e;border:none;border-radius:8px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;cursor:pointer;transition:opacity .2s;margin-top:4px;}
+.go:hover{opacity:.85;}
+
+/* READER */
+#reader{flex:1;display:none;flex-direction:column;overflow:hidden;}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;}
+#eyearea{display:flex;align-items:center;gap:7px;font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);}
+#dot{width:8px;height:8px;border-radius:50%;background:var(--dim);transition:background .2s,box-shadow .2s;flex-shrink:0;}
+#dot.open{background:var(--green);box-shadow:0 0 7px #6dbf8a66;}
+#dot.closed{background:var(--red);box-shadow:0 0 7px #bf6d6d66;}
+#etxt{min-width:52px;font-size:10px;}
+.sep{width:1px;height:13px;background:var(--border);}
+.tb{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 9px;cursor:pointer;white-space:nowrap;}
+.tb:hover{color:var(--text);border-color:var(--dim);}
+#spinfo{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);margin-left:auto;white-space:nowrap;}
+
+/* calibration overlay */
+#cal-overlay{
+  display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.88);
+  flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  text-align:center;padding:32px;
+}
+#cal-overlay.show{display:flex;}
+#cal-video-wrap{position:relative;width:200px;height:150px;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+#cal-video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+#cal-canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);}
+#cal-msg{font-family:'Space Mono',monospace;font-size:12px;color:var(--text);line-height:1.8;}
+#cal-ear{font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);}
+#cal-btn{
+  background:var(--accent);color:#0e0e0e;border:none;border-radius:8px;
+  padding:12px 28px;font-family:'Space Mono',monospace;font-size:11px;
+  letter-spacing:1px;cursor:pointer;
+}
+#cal-btn:disabled{opacity:.4;cursor:default;}
+#cal-skip{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;text-decoration:underline;}
+
+#prog{position:fixed;top:0;left:0;height:2px;width:0%;background:var(--accent);opacity:.35;z-index:100;}
+#sa{flex:1;overflow-y:scroll;padding:48px 0 100px;}
+#sa::-webkit-scrollbar{display:none;}
+#tbody{max-width:600px;margin:0 auto;padding:0 24px;font-size:18px;line-height:2.2;color:var(--text);white-space:pre-wrap;word-break:keep-all;letter-spacing:.3px;}
+body.fs-s #tbody{font-size:15px;line-height:2.0;}
+body.fs-l #tbody{font-size:21px;line-height:2.3;}
+
+#cw{position:fixed;bottom:14px;right:14px;width:100px;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#000;z-index:50;opacity:.35;transition:opacity .2s;}
+#cw:hover,#cw:active{opacity:1;}
+#cv{width:100%;display:block;transform:scaleX(-1);}
+#cc{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+
+<!-- 보정 오버레이 -->
+<div id="cal-overlay">
+  <div id="cal-video-wrap">
+    <video id="cal-video" autoplay muted playsinline></video>
+    <canvas id="cal-canvas"></canvas>
+  </div>
+  <div id="cal-msg">눈을 크게 뜨고<br>아래 버튼을 눌러주세요</div>
+  <div id="cal-ear">EAR 측정 중...</div>
+  <button id="cal-btn" onclick="doCalibrate()" disabled>👁 지금 보정</button>
+  <span id="cal-skip" onclick="skipCalibrate()">그냥 시작할게요</span>
+</div>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="card">
+    <h1>눈으로 읽기</h1>
+    <p class="sub">눈 뜨면 스크롤 · 눈 감으면 정지</p>
+
+    <div id="rbanner">
+      <span id="rinfo"></span>
+      <button id="rbtn" onclick="resumeRead()">이어 읽기</button>
+    </div>
+
+    <div id="dz">
+      <input type="file" accept=".txt" onchange="onFile(this)">
+      <div class="di">📄</div>
+      <div class="dl">txt 파일 클릭해서 선택</div>
+      <div id="fn"></div>
+    </div>
+
+    <div class="or-row">또는 직접 붙여넣기</div>
+    <textarea id="nt" placeholder="텍스트를 여기에 붙여넣으세요..."></textarea>
+
+    <div class="opts">
+      <div class="og">
+        <span class="ol">스크롤 속도</span>
+        <div class="srow">
+          <input type="range" id="sr" min="0.3" max="5" step="0.1" value="1.2"
+            oninput="document.getElementById('srv').textContent=parseFloat(this.value).toFixed(1)">
+          <span class="rv" id="srv">1.2</span>
+        </div>
+      </div>
+      <div class="og">
+        <span class="ol">글자 크기</span>
+        <select id="fs">
+          <option value="fs-s">작게</option>
+          <option value="" selected>보통</option>
+          <option value="fs-l">크게</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="go" onclick="startReader()">읽기 시작</button>
+  </div>
+</div>
+
+<!-- READER -->
+<div id="reader">
+  <div id="topbar">
+    <div id="eyearea"><div id="dot"></div><span id="etxt">감지 중...</span></div>
+    <div class="sep"></div>
+    <button class="tb" onclick="adj(-.2)">느리게</button>
+    <button class="tb" onclick="adj(+.2)">빠르게</button>
+    <div class="sep"></div>
+    <button class="tb" onclick="openCalibrate()">눈 보정</button>
+    <button class="tb" onclick="goSetup()">처음으로</button>
+    <span id="spinfo">속도 1.2</span>
+  </div>
+  <div id="sa"><div id="tbody"></div></div>
+</div>
+
+<div id="cw" style="display:none">
+  <video id="cv" autoplay muted playsinline></video>
+  <canvas id="cc"></canvas>
+</div>
+
+<script>
+const L_EYE=[362,385,387,263,373,380], R_EYE=[33,160,158,133,153,144];
+const BLINK=3, SAVE_KEY='eyereader_v1';
+
+let thresh = 0.21; // 기본값, 보정 후 교체
+let sa,prog,dot,etxt,spinfo;
+let speed=1.2, eyesOpen=false, closed=0;
+let saveTimer=null, currentFile='', resumePos=0;
+let fmInstance=null;
+let calMode=false, calEarBuffer=[], calRunning=false;
+let lastEar=0;
+
+// storage
+async function save(top){try{const max=sa.scrollHeight-sa.clientHeight;await window.storage.set(SAVE_KEY,JSON.stringify({top,pct:Math.round(top/max*100),file:currentFile,ts:Date.now()}));}catch(e){}}
+async function getSaved(){try{const r=await window.storage.get(SAVE_KEY);return r?JSON.parse(r.value):null;}catch(e){return null;}}
+
+// file
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);});
+function onFile(inp){if(inp.files[0])readFile(inp.files[0]);}
+function readFile(f){
+  if(!f.name.toLowerCase().endsWith('.txt')){alert('.txt 파일만 지원합니다.');return;}
+  currentFile=f.name;
+  const r=new FileReader();
+  r.onload=e=>{document.getElementById('nt').value=e.target.result;document.getElementById('fn').textContent='✓ '+f.name;document.querySelector('.di').textContent='✅';};
+  r.readAsText(f,'UTF-8');
+}
+
+function ago(ts){const d=Date.now()-ts;if(d<60000)return '방금 전';if(d<3600000)return Math.floor(d/60000)+'분 전';if(d<86400000)return Math.floor(d/3600000)+'시간 전';return Math.floor(d/86400000)+'일 전';}
+
+// EAR
+function d2(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function calcEar(lm,idx){const[p1,p2,p3,p4,p5,p6]=idx.map(i=>lm[i]);return(d2(p2,p6)+d2(p3,p5))/(2*d2(p1,p4));}
+
+function onResults(res){
+  lastEar=0;
+  const cvs=calMode?document.getElementById('cal-canvas'):document.getElementById('cc');
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  if(!res.multiFaceLandmarks?.length){if(!calMode)setEye(false);return;}
+  const lm=res.multiFaceLandmarks[0];
+  const e=(calcEar(lm,L_EYE)+calcEar(lm,R_EYE))/2;
+  lastEar=e;
+
+  if(calMode){
+    // 보정 모드: 얼굴 점만 표시, EAR 수치 업데이트
+    document.getElementById('cal-ear').textContent='EAR: '+e.toFixed(3);
+    document.getElementById('cal-btn').disabled=false;
+    ctx.fillStyle='#c9bba8';
+    const W=cvs.width,H=cvs.height;
+    [...L_EYE,...R_EYE].forEach(i=>{ctx.beginPath();ctx.arc(lm[i].x*W,lm[i].y*H,2.5,0,Math.PI*2);ctx.fill();});
+    if(calRunning){calEarBuffer.push(e);}
+  } else {
+    if(e<=thresh){if(++closed>=BLINK)setEye(false);}
+    else{closed=0;setEye(true);}
+    ctx.fillStyle=eyesOpen?'#6dbf8a':'#bf6d6d';
+    const W=cvs.width,H=cvs.height;
+    [...L_EYE,...R_EYE].forEach(i=>{ctx.beginPath();ctx.arc(lm[i].x*W,lm[i].y*H,2,0,Math.PI*2);ctx.fill();});
+  }
+}
+
+function setEye(open){
+  eyesOpen=open;
+  dot.className=open?'open':'closed';
+  etxt.textContent=open?'눈 열림':'눈 감김';
+}
+
+// calibration
+function openCalibrate(){
+  calMode=true;
+  calEarBuffer=[];
+  calRunning=false;
+  const cvs=document.getElementById('cal-canvas');
+  // mirror cal video from main video
+  const mainVid=document.getElementById('cv');
+  const calVid=document.getElementById('cal-video');
+  // reuse same stream
+  if(mainVid.srcObject) calVid.srcObject=mainVid.srcObject;
+  cvs.width=200; cvs.height=150;
+  document.getElementById('cal-overlay').classList.add('show');
+  document.getElementById('cal-btn').disabled=true;
+  document.getElementById('cal-ear').textContent='EAR 측정 중...';
+}
+
+function doCalibrate(){
+  // collect 30 frames
+  calRunning=true;
+  calEarBuffer=[];
+  document.getElementById('cal-btn').disabled=true;
+  document.getElementById('cal-msg').textContent='눈 크게 뜨고\n잠깐만요...';
+  setTimeout(()=>{
+    calRunning=false;
+    if(calEarBuffer.length>0){
+      const avg=calEarBuffer.reduce((a,b)=>a+b,0)/calEarBuffer.length;
+      thresh=+(avg*0.65).toFixed(3); // 열린 눈 EAR의 65%를 임계값으로
+      document.getElementById('cal-msg').textContent='보정 완료!\n임계값: '+thresh;
+      document.getElementById('cal-ear').textContent='열린 눈 EAR 평균: '+avg.toFixed(3);
+      document.getElementById('cal-btn').textContent='✓ 완료';
+      setTimeout(()=>{
+        calMode=false;
+        document.getElementById('cal-overlay').classList.remove('show');
+        document.getElementById('cal-btn').textContent='👁 지금 보정';
+      },1200);
+    }
+  },1500);
+}
+
+function skipCalibrate(){
+  calMode=false;
+  document.getElementById('cal-overlay').classList.remove('show');
+}
+
+function scrollLoop(){
+  if(eyesOpen&&sa){
+    sa.scrollTop+=speed;
+    const max=sa.scrollHeight-sa.clientHeight;
+    prog.style.width=Math.min(100,sa.scrollTop/max*100)+'%';
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>save(sa.scrollTop),2000);
+  }
+  requestAnimationFrame(scrollLoop);
+}
+
+function adj(d){speed=Math.max(0.3,Math.min(6,+(speed+d).toFixed(1)));spinfo.textContent='속도 '+speed.toFixed(1);}
+
+function goSetup(){
+  if(sa)save(sa.scrollTop);
+  document.getElementById('reader').style.display='none';
+  document.getElementById('setup').style.display='flex';
+  document.getElementById('cw').style.display='none';
+}
+
+async function resumeRead(){const s=await getSaved();if(!s)return;resumePos=s.top;startReader(true);}
+
+async function startReader(resume=false){
+  const text=document.getElementById('nt').value.trim();
+  if(!text){alert('텍스트를 먼저 불러오거나 붙여넣어 주세요.');return;}
+  speed=parseFloat(document.getElementById('sr').value);
+  document.body.className=document.getElementById('fs').value;
+  document.getElementById('tbody').textContent=text;
+  document.getElementById('setup').style.display='none';
+  document.getElementById('reader').style.display='flex';
+  document.getElementById('cw').style.display='block';
+  sa=document.getElementById('sa');
+  prog=document.getElementById('prog');
+  dot=document.getElementById('dot');
+  etxt=document.getElementById('etxt');
+  spinfo=document.getElementById('spinfo');
+  spinfo.textContent='속도 '+speed.toFixed(1);
+  if(resume&&resumePos) requestAnimationFrame(()=>requestAnimationFrame(()=>{sa.scrollTop=resumePos;}));
+  requestAnimationFrame(scrollLoop);
+  await load('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+  await load('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.min.js');
+  const video=document.getElementById('cv'),cvs=document.getElementById('cc');
+  if(!fmInstance){
+    fmInstance=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
+    fmInstance.setOptions({maxNumFaces:1,refineLandmarks:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    fmInstance.onResults(onResults);
+    const cam=new Camera(video,{onFrame:async()=>{
+      cvs.width=video.videoWidth||100;cvs.height=video.videoHeight||75;
+      const calCvs=document.getElementById('cal-canvas');
+      calCvs.width=video.videoWidth||200;calCvs.height=video.videoHeight||150;
+      await fmInstance.send({image:video});
+    },width:320,height:240});
+    cam.start().catch(e=>alert('카메라 오류: '+e.message));
+  }
+  // 시작하자마자 보정 유도
+  setTimeout(()=>openCalibrate(),800);
+}
+
+function load(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){res();return;}const s=document.createElement('script');s.src=src;s.crossOrigin='anonymous';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+
+(async()=>{const s=await getSaved();if(!s||!s.top)return;resumePos=s.top;document.getElementById('rinfo').textContent=(s.file?s.file+' · ':'')+s.pct+'% · '+ago(s.ts);const b=document.getElementById('rbanner');b.style.display='flex';})();
+</script>
+</body>
+</html>
